@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BabyTracker AI — baby care log</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="hero">
+  <p class="overline">Baby care logbook</p>
+  <h1>BabyTracker AI</h1>
+  <p class="tag">One-tap logs for feeds, naps, and diapers — plus growth tracking and soothing tips. 100% local.</p>
+  <p class="disclaimer">Gentle note: this is a logbook, not medical advice. When in doubt, talk to your pediatrician.</p>
+</header>
+
+<main>
+  <section class="card">
+    <h2>Today</h2>
+    <div id="sumgrid" class="sumgrid"></div>
+  </section>
+
+  <section class="card">
+    <h2>Quick log</h2>
+    <div class="btnrow">
+      <button data-feed="breast-left">Left side</button>
+      <button data-feed="breast-right">Right side</button>
+      <button data-feed="bottle">Bottle</button>
+      <input id="oz" type="number" min="0" step="0.5" placeholder="oz" aria-label="ounces">
+    </div>
+    <div class="btnrow">
+      <button id="sleepbtn">Start nap</button>
+    </div>
+    <div class="btnrow">
+      <button data-diaper="wet">Wet</button>
+      <button data-diaper="dirty">Dirty</button>
+      <button data-diaper="both">Both</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Recent</h2>
+    <div id="loglist"></div>
+  </section>
+
+  <section class="card">
+    <h2>Growth</h2>
+    <div class="row">
+      <input id="gw" type="number" min="0" step="0.1" placeholder="Weight (lb)">
+      <input id="gh" type="number" min="0" step="0.1" placeholder="Height (in)">
+      <input id="gnote" placeholder="Note (e.g. 2-month checkup)">
+      <button id="gadd">Log measurement</button>
+    </div>
+    <div id="growthlist"></div>
+    <p class="muted small">Percentiles and "is this normal?" questions belong with your pediatrician — this log just keeps the numbers handy for those visits.</p>
+  </section>
+
+  <section class="card">
+    <h2>Soothing tips</h2>
+    <div class="btnrow">
+      <button class="tipcat" data-cat="feeding">Feeding</button>
+      <button class="tipcat" data-cat="sleep">Sleep</button>
+      <button class="tipcat" data-cat="fussy">Fussy</button>
+      <button class="tipcat" data-cat="diaper">Diaper</button>
+      <button class="tipcat" data-cat="general">General</button>
+    </div>
+    <div id="tipslist"></div>
+  </section>
+</main>
+
+<footer>
+  <button id="reset" class="danger">Clear all logs on this device</button>
+  <p class="muted small">Your logs live in this browser's localStorage (<code>babytracker.v1</code>). Nothing is uploaded anywhere. Not medical advice — talk to your pediatrician with any concerns.</p>
+</footer>
+
+<script src="js/tipsbank.js"></script>
+<script src="js/logic.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
