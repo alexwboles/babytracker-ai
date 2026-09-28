@@ -3,68 +3,104 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BabyTracker AI — baby care log</title>
+<title>BabyTracker AI — one-tap baby care log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<header class="hero">
-  <p class="overline">Baby care logbook</p>
-  <h1>BabyTracker AI</h1>
-  <p class="tag">One-tap logs for feeds, naps, and diapers — plus growth tracking and soothing tips. 100% local.</p>
-  <p class="disclaimer">Gentle note: this is a logbook, not medical advice. When in doubt, talk to your pediatrician.</p>
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    </span>
+    <div>
+      <h1>BabyTracker <span>AI</span></h1>
+      <p class="tag">One-tap care log for tired parents. All local, nothing leaves your browser.</p>
+    </div>
+  </div>
+  <p class="pill local">Local only</p>
 </header>
+<p class="disclaimer"><strong>Gentle note:</strong> this is a logbook, not medical advice. When in doubt, talk to your pediatrician.</p>
 
 <main>
-  <section class="card">
-    <h2>Today</h2>
-    <div id="sumgrid" class="sumgrid"></div>
+  <section class="card now" aria-label="Right now">
+    <p class="overline">Right now</p>
+    <div id="sumgrid"></div>
   </section>
 
-  <section class="card">
-    <h2>Quick log</h2>
-    <div class="btnrow">
-      <button data-feed="breast-left">Left side</button>
-      <button data-feed="breast-right">Right side</button>
-      <button data-feed="bottle">Bottle</button>
-      <input id="oz" type="number" min="0" step="0.5" placeholder="oz" aria-label="ounces">
+  <section class="card" aria-label="Quick log">
+    <div class="card-head">
+      <h2>Quick log</h2>
+      <p class="muted">One tap, timestamped automatically.</p>
     </div>
-    <div class="btnrow">
-      <button id="sleepbtn">Start nap</button>
+
+    <div class="log-group feed">
+      <p class="group-label">Feed</p>
+      <div class="btnrow">
+        <button class="logbtn feed" data-feed="breast-left"><span class="lb">Left</span><span class="ls">breast</span></button>
+        <button class="logbtn feed" data-feed="breast-right"><span class="lb">Right</span><span class="ls">breast</span></button>
+        <button class="logbtn feed" data-feed="bottle"><span class="lb">Bottle</span><span class="ls">formula / milk</span></button>
+      </div>
+      <div class="ozrow">
+        <button type="button" id="ozdown" aria-label="Decrease ounces">−</button>
+        <label>Ounces <input id="oz" type="number" min="0" step="0.5" placeholder="0" aria-label="ounces"></label>
+        <button type="button" id="ozup" aria-label="Increase ounces">+</button>
+      </div>
     </div>
-    <div class="btnrow">
-      <button data-diaper="wet">Wet</button>
-      <button data-diaper="dirty">Dirty</button>
-      <button data-diaper="both">Both</button>
+
+    <div class="log-group sleep">
+      <p class="group-label">Sleep</p>
+      <button id="sleepbtn" class="logbtn sleep wide">Start nap</button>
+    </div>
+
+    <div class="log-group diaper">
+      <p class="group-label">Diaper</p>
+      <div class="btnrow">
+        <button class="logbtn diaper" data-diaper="wet"><span class="lb">Wet</span></button>
+        <button class="logbtn diaper" data-diaper="dirty"><span class="lb">Dirty</span></button>
+        <button class="logbtn diaper" data-diaper="both"><span class="lb">Both</span></button>
+      </div>
     </div>
   </section>
 
-  <section class="card">
-    <h2>Recent</h2>
-    <div id="loglist"></div>
-  </section>
-
-  <section class="card">
-    <h2>Growth</h2>
-    <div class="row">
-      <input id="gw" type="number" min="0" step="0.1" placeholder="Weight (lb)">
-      <input id="gh" type="number" min="0" step="0.1" placeholder="Height (in)">
-      <input id="gnote" placeholder="Note (e.g. 2-month checkup)">
-      <button id="gadd">Log measurement</button>
+  <section class="card" aria-label="Recent log">
+    <div class="card-head">
+      <h2>Recent</h2>
+      <p class="muted">Last 30 entries — mistakes are fixable.</p>
     </div>
-    <div id="growthlist"></div>
-    <p class="muted small">Percentiles and "is this normal?" questions belong with your pediatrician — this log just keeps the numbers handy for those visits.</p>
+    <div id="loglist" class="timeline"></div>
   </section>
 
-  <section class="card">
-    <h2>Soothing tips</h2>
-    <div class="btnrow">
+  <section class="card" aria-label="Growth">
+    <div class="card-head">
+      <h2>Growth</h2>
+      <p class="muted">Log weight and height at checkups to see the trend.</p>
+    </div>
+    <div class="growform">
+      <label>Weight (lb)<input id="gw" type="number" min="0" step="0.1" placeholder="12.4"></label>
+      <label>Height (in)<input id="gh" type="number" min="0" step="0.1" placeholder="23.5"></label>
+      <label class="wide">Note<input id="gnote" placeholder="e.g. 2-month checkup"></label>
+      <button id="gadd" class="btn primary">Log measurement</button>
+    </div>
+    <div id="growthlist" class="growthlist"></div>
+    <p class="muted small">Percentiles and “is this normal?” questions belong with your pediatrician — this log just keeps the numbers handy for those visits.</p>
+  </section>
+
+  <section class="card" aria-label="Soothing tips">
+    <div class="card-head">
+      <h2>Soothing tips</h2>
+      <p class="muted">Gentle, practical, non-medical.</p>
+    </div>
+    <div class="chips" role="tablist" aria-label="Tip categories">
       <button class="tipcat" data-cat="feeding">Feeding</button>
       <button class="tipcat" data-cat="sleep">Sleep</button>
       <button class="tipcat" data-cat="fussy">Fussy</button>
       <button class="tipcat" data-cat="diaper">Diaper</button>
       <button class="tipcat" data-cat="general">General</button>
     </div>
-    <div id="tipslist"></div>
+    <div id="tipslist" class="tips"></div>
   </section>
 </main>
 

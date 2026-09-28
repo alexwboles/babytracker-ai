@@ -18,6 +18,13 @@
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
 
+  const ICONS = {
+    feed: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.7s6.5 7 6.5 11.3a6.5 6.5 0 0 1-13 0C5.5 9.7 12 2.7 12 2.7z"/></svg>',
+    sleep: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>',
+    diaper: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/></svg>',
+    growth: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>'
+  };
+
   function addEntry(type, data) {
     state.entries.push({ id: newId(), type, ts: Date.now(), data: data || {} });
     save(state); render();
@@ -37,23 +44,31 @@
     renderGrowth();
     renderTips();
     const os = openSleep(state.entries);
-    $("sleepbtn").textContent = os
-      ? "End nap (started " + fmtTime(os.data.start) + ")"
-      : "Start nap";
+    $("sleepbtn").innerHTML = os
+      ? '<span class="lb">End nap</span><span class="ls">started ' + esc(fmtTime(os.data.start)) + "</span>"
+      : '<span class="lb">Start nap</span><span class="ls">tap to begin</span>';
   }
 
   function renderSummary() {
     const key = dayKey(Date.now());
     const s = dailySummary(state.entries, key);
-    const lastFeed = s.lastFeed ? timeAgo(s.lastFeed) : "—";
+    const lastFeed = s.lastFeed ? timeAgo(s.lastFeed) : null;
+    const os = openSleep(state.entries);
     $("sumgrid").innerHTML =
-      card(s.feeds + " feeds", s.oz ? s.oz + " oz bottle" : "last " + lastFeed) +
-      card(s.sleepMin + " min", "asleep today") +
-      card(s.diapers + " diapers", s.wet + " wet · " + s.dirty + " dirty");
+      '<div class="now-big">' +
+        '<div><div class="ago">' + esc(lastFeed || "—") + '</div>' +
+        '<div class="ago-lab">' + (lastFeed ? "since last feed" : "no feeds logged today yet") + "</div></div>" +
+        (os ? '<span class="nap-chip"><span class="dot"></span>Nap in progress · ' + esc(fmtTime(os.data.start)) + "</span>" : "") +
+      "</div>" +
+      '<div class="now-stats">' +
+        stat(s.feeds, "feeds") +
+        stat(s.oz ? s.oz + " oz" : "—", "bottled") +
+        stat(s.sleepMin + " min", "asleep") +
+        stat(s.diapers, "diapers") +
+      "</div>";
   }
-  function card(big, small) {
-    return "<div class='stat'><div class='b'>" + esc(big) +
-      "</div><div class='s'>" + esc(small) + "</div></div>";
+  function stat(big, small) {
+    return '<div class="now-stat"><b>' + esc(String(big)) + "</b><span>" + esc(small) + "</span></div>";
   }
 
   function renderLog() {
@@ -63,17 +78,23 @@
       return;
     }
     $("loglist").innerHTML = items.map(e => {
-      let what = "";
-      if (e.type === "feed") what = esc(feedLabel(e));
-      else if (e.type === "sleep") what = "Nap " + fmtTime(e.data.start) +
-        (e.data.end ? " → " + fmtTime(e.data.end) : " · in progress…");
-      else if (e.type === "diaper") what = "Diaper · " + esc(e.data.kind);
-      else if (e.type === "growth") what = "Growth · " +
-        (e.data.weightLb != null ? esc(e.data.weightLb) + " lb " : "") +
-        (e.data.heightIn != null ? esc(e.data.heightIn) + " in" : "");
-      return "<div class='lrow'><span>" + what + "</span>" +
-        "<span class='muted small'>" + fmtTime(e.ts) + " · " + timeAgo(e.ts) + "</span>" +
-        "<button class='del' data-id='" + e.id + "'>✕</button></div>";
+      let what = "", icon = ICONS.growth;
+      if (e.type === "feed") { what = esc(feedLabel(e)); icon = ICONS.feed; }
+      else if (e.type === "sleep") {
+        what = "Nap " + fmtTime(e.data.start) + (e.data.end ? " → " + fmtTime(e.data.end) : " · in progress…");
+        icon = ICONS.sleep;
+      }
+      else if (e.type === "diaper") { what = "Diaper · " + esc(e.data.kind); icon = ICONS.diaper; }
+      else if (e.type === "growth") {
+        what = "Growth · " +
+          (e.data.weightLb != null ? esc(e.data.weightLb) + " lb " : "") +
+          (e.data.heightIn != null ? esc(e.data.heightIn) + " in" : "");
+        icon = ICONS.growth;
+      }
+      return "<div class='trow'><span class='tdot " + e.type + "'>" + icon + "</span>" +
+        "<span><span class='twhat'>" + what + "</span><br>" +
+        "<span class='twhen'>" + fmtTime(e.ts) + " · " + timeAgo(e.ts) + "</span></span>" +
+        "<button class='del' data-id='" + e.id + "' aria-label='Delete entry'>✕</button></div>";
     }).join("");
     $("loglist").querySelectorAll(".del").forEach(b => b.addEventListener("click", () => {
       state.entries = state.entries.filter(e => e.id !== b.dataset.id);
@@ -84,11 +105,13 @@
   function renderGrowth() {
     const trend = growthTrend(state.entries);
     $("growthlist").innerHTML = trend.length ? trend.slice().reverse().map(g =>
-      "<div class='lrow'><span>" + esc(g.date) + " · " +
-      (g.weightLb != null ? esc(g.weightLb) + " lb" : "—") + " · " +
-      (g.heightIn != null ? esc(g.heightIn) + " in" : "—") +
-      (g.dWeight != null ? " <span class='muted small'>(" + (g.dWeight >= 0 ? "+" : "") + g.dWeight + " lb)</span>" : "") +
-      (g.note ? " · " + esc(g.note) : "") + "</span></div>"
+      "<div class='gcard'><span class='gdate'>" + esc(g.date) + "</span>" +
+      (g.weightLb != null ? "<span class='gnum'>" + esc(g.weightLb) + " <small>lb</small></span>" : "") +
+      (g.heightIn != null ? "<span class='gnum'>" + esc(g.heightIn) + " <small>in</small></span>" : "") +
+      (g.dWeight != null ? "<span class='gdelta'>" + (g.dWeight >= 0 ? "+" : "") + g.dWeight + " lb</span>" : "") +
+      (g.dHeight != null ? "<span class='gdelta'>" + (g.dHeight >= 0 ? "+" : "") + g.dHeight + " in</span>" : "") +
+      (g.note ? "<span class='gnote'>" + esc(g.note) + "</span>" : "") +
+      "</div>"
     ).join("") : "<p class='muted'>No measurements yet. Log weight and height at checkups to see the trend.</p>";
   }
 
@@ -106,6 +129,12 @@
       const oz = kind === "bottle" ? Number($("oz").value) || 0 : 0;
       addEntry("feed", { kind, oz });
     }));
+    const bumpOz = d => {
+      const cur = Number($("oz").value) || 0;
+      $("oz").value = Math.max(0, Math.round((cur + d) * 2) / 2);
+    };
+    $("ozup").addEventListener("click", () => bumpOz(0.5));
+    $("ozdown").addEventListener("click", () => bumpOz(-0.5));
     $("sleepbtn").addEventListener("click", () => {
       const os = openSleep(state.entries);
       if (os) { os.data.end = Date.now(); save(state); render(); }
