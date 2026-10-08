@@ -38,6 +38,7 @@
 
     <div class="log-group feed">
       <p class="group-label">Feed</p>
+      <p class="sidehint" id="sidehint" aria-live="polite"></p>
       <div class="btnrow">
         <button class="logbtn feed" data-feed="breast-left"><span class="lb">Left</span><span class="ls">breast</span></button>
         <button class="logbtn feed" data-feed="breast-right"><span class="lb">Right</span><span class="ls">breast</span></button>
@@ -63,6 +64,14 @@
         <button class="logbtn diaper" data-diaper="both"><span class="lb">Both</span></button>
       </div>
     </div>
+  </section>
+
+  <section class="card" aria-label="This week">
+    <div class="card-head">
+      <h2>This week</h2>
+      <p class="muted">Last 7 days at a glance.</p>
+    </div>
+    <div id="weekstrip" class="weekstrip"></div>
   </section>
 
   <section class="card" aria-label="Recent log">
@@ -105,7 +114,10 @@
 </main>
 
 <footer>
-  <button id="reset" class="danger">Clear all logs on this device</button>
+  <div class="footbtns">
+    <button id="export" class="btn secondary">Export log (CSV)</button>
+    <button id="reset" class="danger">Clear all logs on this device</button>
+  </div>
   <p class="muted small">Your logs live in this browser's localStorage (<code>babytracker.v1</code>). Nothing is uploaded anywhere. Not medical advice — talk to your pediatrician with any concerns.</p>
 </footer>
 

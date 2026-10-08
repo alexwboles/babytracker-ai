@@ -84,6 +84,98 @@ function newId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
+function csvCell(v) {
+  const s = String(v == null ? "" : v);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+/** Export every entry as CSV: id, timestamp, date, time, type, detail. Oldest first. */
+function entriesToCSV(entries) {
+  const rows = [["id", "timestamp", "date", "time", "type", "detail"]];
+  (entries || []).slice().sort((a, b) => a.ts - b.ts).forEach(e => {
+    let detail = "";
+    if (e.type === "feed") {
+      detail = e.data.kind === "bottle" ? "bottle " + (e.data.oz || 0) + "oz" : e.data.kind;
+    } else if (e.type === "sleep") {
+      detail = "nap " + fmtTime(e.data.start) + " → " + (e.data.end ? fmtTime(e.data.end) : "in progress");
+    } else if (e.type === "diaper") {
+      detail = e.data.kind;
+    } else if (e.type === "growth") {
+      detail = [
+        e.data.weightLb != null ? e.data.weightLb + " lb" : "",
+        e.data.heightIn != null ? e.data.heightIn + " in" : "",
+        e.data.note || ""
+      ].filter(Boolean).join(" ");
+    }
+    rows.push([e.id, e.ts, dayKey(e.ts), fmtTime(e.ts), e.type, detail]);
+  });
+  return rows.map(r => r.map(csvCell).join(",")).join("\n");
+}
+
+/** Minutes between consecutive feeds on a day key (sorted oldest-first). */
+function feedIntervals(entries, key) {
+  const day = (entries || [])
+    .filter(e => e.type === "feed" && dayKey(e.ts) === key)
+    .sort((a, b) => a.ts - b.ts);
+  const out = [];
+  for (let i = 1; i < day.length; i++) {
+    out.push(Math.max(0, Math.round((day[i].ts - day[i - 1].ts) / 60000)));
+  }
+  return out;
+}
+
+/** Average minutes between feeds on a day key; null if fewer than 2 feeds. */
+function avgFeedInterval(entries, key) {
+  const iv = feedIntervals(entries, key);
+  if (!iv.length) return null;
+  return Math.round(iv.reduce((s, v) => s + v, 0) / iv.length);
+}
+
+/** Kind of the most recent breast feed: 'breast-left' | 'breast-right' | null. */
+function lastBreastSide(entries) {
+  const feeds = (entries || []).filter(e =>
+    e.type === "feed" && (e.data.kind === "breast-left" || e.data.kind === "breast-right"));
+  return feeds.length ? feeds[feeds.length - 1].data.kind : null;
+}
+
+/** Last 7 days ending on endTs (default now): per-day totals for the week strip. */
+function weeklySummary(entries, endTs) {
+  const end = new Date(endTs == null ? Date.now() : endTs);
+  end.setHours(0, 0, 0, 0);
+  const names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(end.getTime() - i * 86400000);
+    const key = dayKey(d.getTime());
+    const s = dailySummary(entries || [], key);
+    days.push({
+      key,
+      label: names[d.getDay()] + " " + (d.getMonth() + 1) + "/" + d.getDate(),
+      today: i === 0,
+      feeds: s.feeds, oz: s.oz, sleepMin: s.sleepMin, diapers: s.diapers
+    });
+  }
+  return days;
+}
+
+/** Change an entry's timestamp (backdate a late log). Returns true if updated.
+ *  For naps the whole window shifts so the duration is preserved. */
+function retimeEntry(entries, id, newTs) {
+  if (!isFinite(newTs)) return false;
+  const e = (entries || []).find(x => x.id === id);
+  if (!e) return false;
+  const t = Number(newTs);
+  if (e.type === "sleep" && e.data.start) {
+    const delta = t - e.data.start;
+    e.data.start = t;
+    if (e.data.end) e.data.end = e.data.end + delta;
+  }
+  e.ts = t;
+  return true;
+}
+
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { dayKey, timeAgo, fmtTime, dailySummary, openSleep, growthTrend, newId, pad };
+  module.exports = { dayKey, timeAgo, fmtTime, dailySummary, openSleep, growthTrend,
+    newId, pad, entriesToCSV, feedIntervals, avgFeedInterval, lastBreastSide,
+    weeklySummary, retimeEntry };
 }

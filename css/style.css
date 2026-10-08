@@ -200,6 +200,35 @@ main {
   display: grid; place-items: center;
 }
 .del:hover { color: var(--danger); border-color: var(--danger); }
+.adj {
+  border: 1px solid var(--line); background: #fff; color: var(--muted);
+  border-radius: 0; font-size: 12px; font-weight: 700; padding: 6px 10px; cursor: pointer;
+}
+.adj:hover { color: var(--feed-ink); border-color: var(--feed-ink); }
+.timefix {
+  border: 2px solid var(--feed-ink); border-radius: 0; padding: 6px 8px;
+  font-size: 13px; background: #fff; color: var(--ink); margin-left: 8px;
+}
+.sidehint { font-size: 13px; color: var(--feed-ink); font-weight: 600; margin: 0 0 8px; min-height: 0; }
+.sidehint:empty { display: none; }
+
+/* ---------- week strip ---------- */
+.weekstrip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+.wday {
+  background: #fff; border: 1px solid var(--line); border-radius: 0;
+  padding: 10px 8px; display: flex; flex-direction: column; gap: 4px;
+}
+.wday.today { border-color: var(--amber); box-shadow: 0 0 0 1px var(--amber); }
+.wday .wd { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+.wday .wv { font-size: 12px; color: var(--muted); }
+.wday .wv b { color: var(--ink); font-family: var(--round); font-size: 14px; }
+@media (max-width: 560px) { .weekstrip { grid-template-columns: repeat(4, 1fr); } }
+
+/* ---------- footer ---------- */
+footer { max-width: 620px; margin: 0 auto; padding: 14px 18px 40px; text-align: center; }
+.footbtns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.btn.secondary { background: #fff; border: 1.5px solid var(--line); color: var(--ink); }
+.btn.secondary:hover { border-color: var(--amber); }
 
 /* ---------- growth ---------- */
 .growform { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }

@@ -40,13 +40,21 @@
 
   function render() {
     renderSummary();
+    renderWeek();
     renderLog();
     renderGrowth();
     renderTips();
+    renderSideHint();
     const os = openSleep(state.entries);
     $("sleepbtn").innerHTML = os
       ? '<span class="lb">End nap</span><span class="ls">started ' + esc(fmtTime(os.data.start)) + "</span>"
       : '<span class="lb">Start nap</span><span class="ls">tap to begin</span>';
+  }
+
+  function fmtInterval(mins) {
+    if (mins == null) return "—";
+    const h = Math.floor(mins / 60), m = mins % 60;
+    return h ? h + "h " + m + "m" : m + "m";
   }
 
   function renderSummary() {
@@ -54,6 +62,7 @@
     const s = dailySummary(state.entries, key);
     const lastFeed = s.lastFeed ? timeAgo(s.lastFeed) : null;
     const os = openSleep(state.entries);
+    const avgIv = avgFeedInterval(state.entries, key);
     $("sumgrid").innerHTML =
       '<div class="now-big">' +
         '<div><div class="ago">' + esc(lastFeed || "—") + '</div>' +
@@ -62,10 +71,32 @@
       "</div>" +
       '<div class="now-stats">' +
         stat(s.feeds, "feeds") +
+        stat(avgIv != null ? fmtInterval(avgIv) : "—", "avg between feeds") +
         stat(s.oz ? s.oz + " oz" : "—", "bottled") +
         stat(s.sleepMin + " min", "asleep") +
         stat(s.diapers, "diapers") +
       "</div>";
+  }
+
+  function renderWeek() {
+    const days = weeklySummary(state.entries);
+    $("weekstrip").innerHTML = days.map(d =>
+      "<div class='wday" + (d.today ? " today" : "") + "'>" +
+      "<span class='wd'>" + esc(d.label) + "</span>" +
+      "<span class='wv'><b>" + d.feeds + "</b> feeds</span>" +
+      "<span class='wv'><b>" + d.sleepMin + "</b> min sleep</span>" +
+      "<span class='wv'><b>" + d.diapers + "</b> diapers</span>" +
+      "</div>").join("");
+  }
+
+  function renderSideHint() {
+    const el = $("sidehint");
+    if (!el) return;
+    const side = lastBreastSide(state.entries);
+    el.textContent = side
+      ? "Last nursed: " + (side === "breast-left" ? "left" : "right") +
+        " — consider the " + (side === "breast-left" ? "right" : "left") + " side next"
+      : "";
   }
   function stat(big, small) {
     return '<div class="now-stat"><b>' + esc(String(big)) + "</b><span>" + esc(small) + "</span></div>";
@@ -94,12 +125,41 @@
       return "<div class='trow'><span class='tdot " + e.type + "'>" + icon + "</span>" +
         "<span><span class='twhat'>" + what + "</span><br>" +
         "<span class='twhen'>" + fmtTime(e.ts) + " · " + timeAgo(e.ts) + "</span></span>" +
+        "<button class='adj' data-id='" + e.id + "' aria-label='Adjust time'>Adjust</button>" +
         "<button class='del' data-id='" + e.id + "' aria-label='Delete entry'>✕</button></div>";
     }).join("");
     $("loglist").querySelectorAll(".del").forEach(b => b.addEventListener("click", () => {
       state.entries = state.entries.filter(e => e.id !== b.dataset.id);
       save(state); render();
     }));
+    $("loglist").querySelectorAll(".adj").forEach(b => b.addEventListener("click", () => {
+      openTimeAdjust(b);
+    }));
+  }
+
+  function openTimeAdjust(btn) {
+    const id = btn.dataset.id;
+    const entry = state.entries.find(e => e.id === id);
+    if (!entry) return;
+    const row = btn.closest(".trow");
+    btn.remove();
+    const input = document.createElement("input");
+    input.type = "datetime-local";
+    input.className = "timefix";
+    input.setAttribute("aria-label", "New date and time");
+    const d = new Date(entry.ts);
+    input.value = d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) +
+      "T" + pad(d.getHours()) + ":" + pad(d.getMinutes());
+    input.addEventListener("change", () => {
+      const v = new Date(input.value).getTime();
+      if (retimeEntry(state.entries, id, v)) save(state);
+      render();
+    });
+    input.addEventListener("keydown", ev => {
+      if (ev.key === "Escape") render();
+    });
+    row.appendChild(input);
+    input.focus();
   }
 
   function renderGrowth() {
@@ -160,6 +220,16 @@
       if (confirm("Clear all baby logs on this device?")) {
         state = { entries: [], tipCat: "general" }; save(state); render();
       }
+    });
+    $("export").addEventListener("click", () => {
+      const blob = new Blob([entriesToCSV(state.entries)], { type: "text/csv;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "babytracker-log.csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     });
     render();
   });

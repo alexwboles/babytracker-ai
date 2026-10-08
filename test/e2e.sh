@@ -85,5 +85,55 @@ flow "entries on other days excluded from summary" "
   if(s.feeds!==1) throw new Error('feeds='+s.feeds);
 "
 
+flow "CSV export quotes commas and keeps chronological order" "
+  const L=require('./js/logic.js');
+  const base=new Date(2026,8,28,8,0,0).getTime();
+  const es=[
+    {id:'late',type:'growth',ts:base+60000,data:{weightLb:12.4,heightIn:24,note:'2-month, checkup'}},
+    {id:'early',type:'feed',ts:base,data:{kind:'breast-left',oz:0}}
+  ];
+  const lines=L.entriesToCSV(es).split('\n');
+  if(!lines[1].includes('early')||!lines[2].includes('late')) throw new Error('order');
+  var q=String.fromCharCode(34);
+  if(!lines[2].includes(q+'12.4 lb 24 in 2-month, checkup'+q)) throw new Error('quoting: '+lines[2]);
+"
+
+flow "weekly summary buckets entries per day" "
+  const L=require('./js/logic.js');
+  const d1=new Date(2026,8,28,9,0,0).getTime();
+  const d2=new Date(2026,8,27,9,0,0).getTime();
+  const es=[
+    {type:'feed',ts:d1,data:{kind:'bottle',oz:4}},
+    {type:'feed',ts:d1+3600000,data:{kind:'bottle',oz:4}},
+    {type:'diaper',ts:d2,data:{kind:'wet'}},
+    {type:'sleep',ts:d1,data:{start:d1,end:d1+3600000}}
+  ];
+  const wk=L.weeklySummary(es,d1);
+  const t=wk[6], y=wk[5];
+  if(t.feeds!==2||t.sleepMin!==60||t.diapers!==0) throw new Error('today: '+JSON.stringify(t));
+  if(y.diapers!==1||y.feeds!==0) throw new Error('yesterday: '+JSON.stringify(y));
+"
+
+flow "retimeEntry preserves nap duration when shifting" "
+  const L=require('./js/logic.js');
+  const base=new Date(2026,8,28,8,0,0).getTime();
+  const nap={id:'n',type:'sleep',ts:base,data:{start:base,end:base+5400000}};
+  const es=[nap];
+  const shift=base-3600000;
+  if(!L.retimeEntry(es,'n',shift)) throw new Error('no update');
+  if(es[0].data.end-es[0].data.start!==5400000) throw new Error('duration changed');
+  if(es[0].data.start!==shift) throw new Error('start wrong');
+"
+
+flow "nursing side alternation uses the latest breast feed" "
+  const L=require('./js/logic.js');
+  const es=[
+    {type:'feed',ts:1,data:{kind:'breast-right'}},
+    {type:'feed',ts:2,data:{kind:'bottle',oz:5}},
+    {type:'feed',ts:3,data:{kind:'breast-left'}}
+  ];
+  if(L.lastBreastSide(es)!=='breast-left') throw new Error('side wrong');
+"
+
 echo "--- e2e: $pass passed, $fail failed ---"
 exit $((fail>0))
