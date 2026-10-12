@@ -97,6 +97,21 @@
     <p class="muted small">Percentiles and “is this normal?” questions belong with your pediatrician — this log just keeps the numbers handy for those visits.</p>
   </section>
 
+  <section class="card" aria-label="Milestones">
+    <div class="card-head">
+      <h2>Milestones</h2>
+      <p class="muted">First smile, rolled over, slept through the night — log the firsts as they happen.</p>
+    </div>
+    <label class="dobrow">Baby's birth date <span class="muted small">(optional — shows age at each milestone)</span>
+      <input type="date" id="dob" aria-label="Baby's birth date">
+    </label>
+    <div class="mrow">
+      <input id="mtext" placeholder="e.g. Rolled over for the first time!" maxlength="140" aria-label="Milestone text">
+      <button id="madd" class="btn primary">Log milestone</button>
+    </div>
+    <div id="milestonelist" class="milestones"></div>
+  </section>
+
   <section class="card" aria-label="Soothing tips">
     <div class="card-head">
       <h2>Soothing tips</h2>
@@ -116,10 +131,13 @@
 <footer>
   <div class="footbtns">
     <button id="export" class="btn secondary">Export log (CSV)</button>
+    <button id="visitbtn" class="btn secondary">Visit summary (print)</button>
     <button id="reset" class="danger">Clear all logs on this device</button>
   </div>
   <p class="muted small">Your logs live in this browser's localStorage (<code>babytracker.v1</code>). Nothing is uploaded anywhere. Not medical advice — talk to your pediatrician with any concerns.</p>
 </footer>
+
+<section id="visitsummary" class="visitsheet" hidden aria-label="Pediatrician visit summary"></section>
 
 <script src="js/tipsbank.js"></script>
 <script src="js/logic.js"></script>

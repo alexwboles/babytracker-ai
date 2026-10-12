@@ -7,8 +7,13 @@
   function load() {
     try {
       const s = JSON.parse(localStorage.getItem(KEY));
-      return s && Array.isArray(s.entries) ? s : { entries: [], tipCat: "general" };
-    } catch (e) { return { entries: [], tipCat: "general" }; }
+      if (s && Array.isArray(s.entries)) {
+        if (typeof s.dob !== "string") s.dob = "";
+        if (typeof s.tipCat !== "string") s.tipCat = "general";
+        return s;
+      }
+      return { entries: [], tipCat: "general", dob: "" };
+    } catch (e) { return { entries: [], tipCat: "general", dob: "" }; }
   }
   function save(s) { localStorage.setItem(KEY, JSON.stringify(s)); }
   let state = load();
@@ -22,7 +27,8 @@
     feed: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.7s6.5 7 6.5 11.3a6.5 6.5 0 0 1-13 0C5.5 9.7 12 2.7 12 2.7z"/></svg>',
     sleep: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>',
     diaper: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/></svg>',
-    growth: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>'
+    growth: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>',
+    milestone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.8 5.9 21l1.4-6.8-5.1-4.7 6.9-.8z"/></svg>'
   };
 
   function addEntry(type, data) {
@@ -43,12 +49,15 @@
     renderWeek();
     renderLog();
     renderGrowth();
+    renderMilestones();
     renderTips();
     renderSideHint();
     const os = openSleep(state.entries);
     $("sleepbtn").innerHTML = os
       ? '<span class="lb">End nap</span><span class="ls">started ' + esc(fmtTime(os.data.start)) + "</span>"
       : '<span class="lb">Start nap</span><span class="ls">tap to begin</span>';
+    const dob = $("dob");
+    if (dob && dob.value !== (state.dob || "")) dob.value = state.dob || "";
   }
 
   function fmtInterval(mins) {
@@ -63,6 +72,7 @@
     const lastFeed = s.lastFeed ? timeAgo(s.lastFeed) : null;
     const os = openSleep(state.entries);
     const avgIv = avgFeedInterval(state.entries, key);
+    const stretch = longestSleepStretch(state.entries, Date.now());
     $("sumgrid").innerHTML =
       '<div class="now-big">' +
         '<div><div class="ago">' + esc(lastFeed || "—") + '</div>' +
@@ -75,6 +85,7 @@
         stat(s.oz ? s.oz + " oz" : "—", "bottled") +
         stat(s.sleepMin + " min", "asleep") +
         stat(s.diapers, "diapers") +
+        stat(stretch ? fmtInterval(stretch.mins) : "—", "longest stretch · 7d") +
       "</div>";
   }
 
@@ -121,6 +132,10 @@
           (e.data.weightLb != null ? esc(e.data.weightLb) + " lb " : "") +
           (e.data.heightIn != null ? esc(e.data.heightIn) + " in" : "");
         icon = ICONS.growth;
+      }
+      else if (e.type === "milestone") {
+        what = "Milestone · " + esc(e.data.text || "");
+        icon = ICONS.milestone;
       }
       return "<div class='trow'><span class='tdot " + e.type + "'>" + icon + "</span>" +
         "<span><span class='twhat'>" + what + "</span><br>" +
@@ -175,6 +190,58 @@
     ).join("") : "<p class='muted'>No measurements yet. Log weight and height at checkups to see the trend.</p>";
   }
 
+  function renderMilestones() {
+    const host = $("milestonelist");
+    if (!host) return;
+    const list = milestones(state.entries).slice().reverse();
+    host.innerHTML = list.length ? list.map(e => {
+      const age = state.dob ? ageAt(state.dob, e.ts) : "";
+      return "<div class='mcard'><span class='mstar'>" + ICONS.milestone + "</span>" +
+        "<div><div class='mtext'>" + esc(e.data.text || "") + "</div>" +
+        "<div class='mwhen'>" + esc(fmtTime(e.ts)) + " · " + esc(timeAgo(e.ts)) +
+        (age ? " · age " + esc(age) : "") + "</div></div>" +
+        "<button class='del' data-mdel='" + e.id + "' aria-label='Delete milestone'>✕</button></div>";
+    }).join("") : "<p class='muted'>No milestones yet — log the firsts as they happen.</p>";
+    host.querySelectorAll("[data-mdel]").forEach(b => b.addEventListener("click", () => {
+      state.entries = state.entries.filter(e => e.id !== b.dataset.mdel);
+      save(state); render();
+    }));
+  }
+
+  function renderVisit() {
+    const v = visitSummary(state.entries, state.dob);
+    const host = $("visitsummary");
+    if (!host) return;
+    const gRow = g =>
+      "<li>" + esc(g.date) + " — " +
+      [g.weightLb != null ? esc(g.weightLb) + " lb" : "",
+       g.heightIn != null ? esc(g.heightIn) + " in" : "",
+       g.note ? esc(g.note) : ""].filter(Boolean).join(" · ") + "</li>";
+    const mRow = e =>
+      "<li>" + esc(dayKey(e.ts)) + (state.dob ? " (age " + esc(ageAt(state.dob, e.ts)) + ")" : "") +
+      " — " + esc(e.data.text || "") + "</li>";
+    host.innerHTML =
+      "<h1>Baby visit summary</h1>" +
+      "<p class='vsub'>" + esc(new Date(v.generatedAt).toLocaleDateString()) +
+      (v.age ? " · age " + esc(v.age) : "") + "</p>" +
+      "<h2>Last 7 days</h2>" +
+      "<ul class='vlist'>" +
+      "<li><b>" + v.totals.feeds + "</b> feeds" +
+      (v.avgInterval != null ? " (avg " + esc(fmtInterval(v.avgInterval)) + " apart)" : "") + "</li>" +
+      "<li><b>" + v.totals.oz + " oz</b> bottled</li>" +
+      "<li><b>" + v.totals.sleepMin + " min</b> asleep</li>" +
+      "<li><b>" + v.totals.diapers + "</b> diapers</li>" +
+      (v.stretch ? "<li>longest sleep stretch: <b>" + esc(fmtInterval(v.stretch.mins)) + "</b></li>" : "") +
+      "</ul>" +
+      "<h2>Growth</h2>" +
+      (v.growth.length ? "<ul class='vlist'>" + v.growth.map(gRow).join("") + "</ul>"
+        : "<p class='muted'>No measurements logged.</p>") +
+      "<h2>Milestones</h2>" +
+      (v.milestones.length ? "<ul class='vlist'>" + v.milestones.map(mRow).join("") + "</ul>"
+        : "<p class='muted'>None logged.</p>") +
+      "<p class='vfoot'>Logbook summary — not medical advice. Generated locally by BabyTracker AI.</p>";
+  }
+
   function renderTips() {
     const list = tipsFor(state.tipCat);
     document.querySelectorAll(".tipcat").forEach(b =>
@@ -218,8 +285,25 @@
     }));
     $("reset").addEventListener("click", () => {
       if (confirm("Clear all baby logs on this device?")) {
-        state = { entries: [], tipCat: "general" }; save(state); render();
+        state = { entries: [], tipCat: "general", dob: "" }; save(state); render();
       }
+    });
+    const madd = $("madd");
+    if (madd) madd.addEventListener("click", () => {
+      const t = $("mtext").value.trim();
+      if (!t) return;
+      addEntry("milestone", { text: t });
+      $("mtext").value = "";
+    });
+    const dob = $("dob");
+    if (dob) dob.addEventListener("change", () => {
+      state.dob = /^\d{4}-\d{2}-\d{2}$/.test(dob.value) ? dob.value : "";
+      save(state); render();
+    });
+    const visitbtn = $("visitbtn");
+    if (visitbtn) visitbtn.addEventListener("click", () => {
+      renderVisit();
+      window.print();
     });
     $("export").addEventListener("click", () => {
       const blob = new Blob([entriesToCSV(state.entries)], { type: "text/csv;charset=utf-8" });

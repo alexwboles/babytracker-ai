@@ -100,6 +100,41 @@ check "index.html wires the new controls" node -e "
   const a=fs.readFileSync('js/app.js','utf8');
   if(!a.includes('weeklySummary(state.entries)')) throw new Error('week not rendered');
   if(!a.includes('lastBreastSide(state.entries)')) throw new Error('side hint not rendered');"
+check "longestSleepStretch finds the longest closed nap in the last 7 days" node -e "
+  const L=require('./js/logic.js');
+  const base=new Date(2026,9,12,12,0,0).getTime();
+  const es=[
+    {type:'sleep',ts:base-86400000,data:{start:base-86400000,end:base-86400000+3600000}},
+    {type:'sleep',ts:base-7200000,data:{start:base-7200000,end:base-1800000}},
+    {type:'sleep',ts:base-600000,data:{start:base-600000,end:null}},
+    {type:'sleep',ts:base-10*86400000,data:{start:base-10*86400000,end:base-10*86400000+7200000}}
+  ];
+  const s=L.longestSleepStretch(es,base);
+  if(!s||s.mins!==90) throw new Error('expected 90, got '+JSON.stringify(s));
+  if(L.longestSleepStretch([],base)!==null) throw new Error('empty should be null');"
+check "ageAt renders human ages from a birth date" node -e "
+  const L=require('./js/logic.js');
+  if(L.ageAt('2026-10-01','2026-10-12T12:00:00')!=='11 d') throw new Error('days: '+L.ageAt('2026-10-01','2026-10-12T12:00:00'));
+  if(L.ageAt('2026-08-01','2026-10-12T12:00:00')!=='2 mo 11 d') throw new Error('months: '+L.ageAt('2026-08-01','2026-10-12T12:00:00'));
+  if(L.ageAt('2025-08-12','2026-10-12T12:00:00')!=='1 y 2 mo') throw new Error('years: '+L.ageAt('2025-08-12','2026-10-12T12:00:00'));
+  if(L.ageAt('','2026-10-12T12:00:00')!=='') throw new Error('empty dob');
+  if(L.ageAt('2026-10-12','2026-10-01T12:00:00')!=='') throw new Error('future birth');"
+check "milestones are listed oldest-first and exported in CSV" node -e "
+  const L=require('./js/logic.js');
+  const es=[
+    {id:'m2',type:'milestone',ts:2000,data:{text:'Rolled over'}},
+    {id:'m1',type:'milestone',ts:1000,data:{text:'First smile'}},
+    {id:'f1',type:'feed',ts:1500,data:{kind:'bottle',oz:4}}
+  ];
+  const ms=L.milestones(es);
+  if(ms.length!==2||ms[0].id!=='m1') throw new Error('order wrong');
+  const csv=L.entriesToCSV(es);
+  if(!csv.includes('milestone: First smile')) throw new Error('milestone missing from CSV');"
+check "index.html wires milestones, birth date, and visit summary" node -e "
+  const fs=require('fs'), h=fs.readFileSync('index.html','utf8');
+  for (const id of ['mtext','madd','milestonelist','dob','visitbtn','visitsummary']) if(!h.includes('id=\"'+id+'\"')) throw new Error('missing '+id);
+  const a=fs.readFileSync('js/app.js','utf8');
+  for (const fn of ['renderMilestones','renderVisit','visitSummary(','longestSleepStretch(']) if(!a.includes(fn)) throw new Error('missing '+fn);"
 
 echo "--- smoke: $pass passed, $fail failed ---"
 exit $((fail>0))

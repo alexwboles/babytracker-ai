@@ -1,11 +1,12 @@
 /* BabyTracker AI — core logic: quick logs, daily summaries, growth log.
    Pure functions; browser-safe. Node tests require this file.
    Entry: { id, type, ts (ms), data }
-   types: feed | sleep | diaper | growth
+   types: feed | sleep | diaper | growth | milestone
    - feed data: { kind: 'breast-left'|'breast-right'|'bottle', oz }
    - sleep data: { start: ms, end: ms|null }  (end null = in progress)
    - diaper data: { kind: 'wet'|'dirty'|'both' }
    - growth data: { weightLb, heightIn, note }
+   - milestone data: { text }
 */
 "use strict";
 
@@ -106,6 +107,8 @@ function entriesToCSV(entries) {
         e.data.heightIn != null ? e.data.heightIn + " in" : "",
         e.data.note || ""
       ].filter(Boolean).join(" ");
+    } else if (e.type === "milestone") {
+      detail = "milestone: " + (e.data.text || "");
     }
     rows.push([e.id, e.ts, dayKey(e.ts), fmtTime(e.ts), e.type, detail]);
   });
@@ -158,6 +161,66 @@ function weeklySummary(entries, endTs) {
   return days;
 }
 
+/** Longest single closed nap (minutes) ending within the last 7 days.
+ *  Returns { mins, ts } or null when there is no closed nap in range. */
+function longestSleepStretch(entries, endTs) {
+  const end = endTs == null ? Date.now() : endTs;
+  const from = end - 7 * 86400000;
+  let best = null;
+  (entries || []).forEach(e => {
+    if (e.type !== "sleep" || !e.data.end) return;
+    if (e.data.end < from || e.data.end > end) return;
+    const mins = Math.max(0, Math.round((e.data.end - e.data.start) / 60000));
+    if (!best || mins > best.mins) best = { mins, ts: e.data.end };
+  });
+  return best;
+}
+
+/** Milestone entries, oldest-first. data: { text }. */
+function milestones(entries) {
+  return (entries || []).filter(e => e.type === "milestone").sort((a, b) => a.ts - b.ts);
+}
+
+/** Human age at a timestamp given a birth date "YYYY-MM-DD": "5 d", "3 mo 12 d", "1 y 2 mo". */
+function ageAt(dobISO, ts) {
+  if (!dobISO || !/^\d{4}-\d{2}-\d{2}$/.test(dobISO)) return "";
+  const dob = new Date(dobISO + "T12:00:00");
+  const d = new Date(ts);
+  if (isNaN(dob) || isNaN(d) || d < dob) return "";
+  let months = (d.getFullYear() - dob.getFullYear()) * 12 + (d.getMonth() - dob.getMonth());
+  let anchor = new Date(dob);
+  anchor.setMonth(dob.getMonth() + months);
+  if (anchor > d) { months--; anchor = new Date(dob); anchor.setMonth(dob.getMonth() + months); }
+  const days = Math.floor((d - anchor) / 86400000);
+  if (months >= 12) {
+    const y = Math.floor(months / 12), m = months % 12;
+    return y + " y" + (m ? " " + m + " mo" : "");
+  }
+  if (months > 0) return months + " mo" + (days ? " " + days + " d" : "");
+  return days + " d";
+}
+
+/** One-page pediatrician visit summary: last-7-day totals, recent growth,
+ *  longest sleep stretch, and latest milestones. Pure data — the caller renders it. */
+function visitSummary(entries, dobISO, endTs) {
+  const end = endTs == null ? Date.now() : endTs;
+  const week = weeklySummary(entries, end);
+  const totals = week.reduce((s, d) => ({
+    feeds: s.feeds + d.feeds, oz: s.oz + d.oz,
+    sleepMin: s.sleepMin + d.sleepMin, diapers: s.diapers + d.diapers
+  }), { feeds: 0, oz: 0, sleepMin: 0, diapers: 0 });
+  return {
+    generatedAt: end,
+    age: ageAt(dobISO, end),
+    week,
+    totals,
+    avgInterval: avgFeedInterval(entries, dayKey(end)),
+    stretch: longestSleepStretch(entries, end),
+    growth: growthTrend(entries).slice(-5),
+    milestones: milestones(entries).slice(-10)
+  };
+}
+
 /** Change an entry's timestamp (backdate a late log). Returns true if updated.
  *  For naps the whole window shifts so the duration is preserved. */
 function retimeEntry(entries, id, newTs) {
@@ -177,5 +240,5 @@ function retimeEntry(entries, id, newTs) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = { dayKey, timeAgo, fmtTime, dailySummary, openSleep, growthTrend,
     newId, pad, entriesToCSV, feedIntervals, avgFeedInterval, lastBreastSide,
-    weeklySummary, retimeEntry };
+    weeklySummary, retimeEntry, longestSleepStretch, milestones, ageAt, visitSummary };
 }

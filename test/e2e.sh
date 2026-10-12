@@ -135,5 +135,34 @@ flow "nursing side alternation uses the latest breast feed" "
   if(L.lastBreastSide(es)!=='breast-left') throw new Error('side wrong');
 "
 
+flow "visitSummary bundles 7-day totals, stretch, growth, and milestones" "
+  const L=require('./js/logic.js');
+  const base=new Date(2026,9,12,18,0,0).getTime();
+  const es=[
+    {id:'f1',type:'feed',ts:base-3600000,data:{kind:'bottle',oz:4}},
+    {id:'f2',type:'feed',ts:base-7200000,data:{kind:'breast-left',oz:0}},
+    {id:'s1',type:'sleep',ts:base-8*3600000,data:{start:base-8*3600000,end:base-5*3600000}},
+    {id:'d1',type:'diaper',ts:base-3600000,data:{kind:'wet'}},
+    {id:'g1',type:'growth',ts:base-86400000,data:{weightLb:12.4,heightIn:24,note:'checkup'}},
+    {id:'m1',type:'milestone',ts:base-2*86400000,data:{text:'First smile'}}
+  ];
+  const v=L.visitSummary(es,'2026-09-01',base);
+  if(v.totals.feeds!==2||v.totals.oz!==4||v.totals.diapers!==1) throw new Error('totals: '+JSON.stringify(v.totals));
+  if(v.totals.sleepMin!==180) throw new Error('sleep: '+v.totals.sleepMin);
+  if(!v.stretch||v.stretch.mins!==180) throw new Error('stretch missing');
+  if(v.growth.length!==1||v.growth[0].weightLb!==12.4) throw new Error('growth');
+  if(v.milestones.length!==1||v.milestones[0].data.text!=='First smile') throw new Error('milestones');
+  if(v.age!=='1 mo 11 d') throw new Error('age: '+v.age);
+  if(v.avgInterval!==60) throw new Error('avgInterval: '+v.avgInterval);
+"
+
+flow "visitSummary works with no data and no birth date" "
+  const L=require('./js/logic.js');
+  const v=L.visitSummary([],'',new Date(2026,9,12,12,0,0).getTime());
+  if(v.totals.feeds!==0||v.stretch!==null) throw new Error('empty totals wrong');
+  if(v.age!=='') throw new Error('empty dob should give empty age');
+  if(v.growth.length||v.milestones.length||v.week.length!==7) throw new Error('empty shape wrong');
+"
+
 echo "--- e2e: $pass passed, $fail failed ---"
 exit $((fail>0))
