@@ -11,6 +11,9 @@ New parents run on fragmented sleep and can't remember when the last feed was, w
 3. **7-day week strip** — per-day feeds, sleep, and diaper totals for the last week.
 4. **Nursing side hint** — shows the last breast side and suggests alternating.
 5. **Adjust entry time** — backdate any log entry (naps shift as a whole, preserving duration).
+6. **Longest sleep stretch** — the longest single nap in the last 7 days, right on the dashboard.
+7. **Milestones** — log the firsts (first smile, rolled over…) with an optional birth date that shows baby's age at each milestone.
+8. **Pediatrician visit summary** — one click builds a printable one-page sheet: last-7-day totals, recent growth, sleep stretch, and milestones.
 1. **Quick-log buttons** — breast (left/right), bottle with ounces, nap start/stop, wet/dirty diapers — one tap, timestamped automatically
 2. **Today dashboard** — feed count, bottle ounces, nap minutes, diaper totals, and "last feed: 25 min ago" at a glance
 3. **Recent log** — last 30 entries with delete, so mistakes are fixable
