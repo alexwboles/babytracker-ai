@@ -174,3 +174,24 @@ check "app.js wires undo, sleep assessment, weight gain" node -e "
 
 echo "--- smoke: $pass passed, $fail failed ---"
 exit $((fail>0))
+
+# redesign sweep: nextNap + new UI ids
+node -e "
+  const L=require('./js/logic.js');
+  const now=new Date(2026,9,13,18,0,0).getTime();
+  const H=3600000;
+  const es=[
+    {type:'sleep',ts:now-5*H,data:{start:now-6.5*H,end:now-5*H}},
+    {type:'sleep',ts:now-2*H,data:{start:now-3.5*H,end:now-2*H}}
+  ];
+  const p=L.nextNap(es,now);
+  if(!p) throw new Error('null');
+  if(p.windowMin!==90) throw new Error('window='+p.windowMin);
+  if(p.basis!==1) throw new Error('basis');
+  if(Math.abs(p.eta-(now-2*H+90*60000))>1) throw new Error('eta');
+  if(L.nextNap(es.slice(0,1),now)!==null) throw new Error('single nap should be null');
+  if(L.nextNap([],now)!==null) throw new Error('empty should be null');
+  const fs=require('fs'), h=fs.readFileSync('index.html','utf8'), a=fs.readFileSync('js/app.js','utf8');
+  for (const id of ['nightmode','sweetspot','growthchart','last-feed','last-sleep','last-diaper','last-growth']) if(!h.includes('id=\"'+id+'\"')) throw new Error('missing '+id);
+  for (const s of ['nextNap','renderPredict','renderGrowthChart','applyNight','daygroup']) if(!a.includes(s)) throw new Error('missing '+s);
+" >/dev/null 2>&1 && echo "PASS: nextNap + redesign ids" || { echo "FAIL: nextNap + redesign ids"; exit 1; }

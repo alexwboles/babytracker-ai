@@ -269,6 +269,29 @@ function weightGainRate(entries) {
   };
 }
 
+/** Next-nap prediction (SweetSpot-style): the average wake window between
+ *  closed naps in the last 7 days, added to the most recent wake time.
+ *  Returns { eta, windowMin, basis, napping } or null when there is not
+ *  enough history to predict from. */
+function nextNap(entries, endTs) {
+  const now = endTs || Date.now();
+  const weekAgo = now - 7 * 86400000;
+  const closed = (entries || [])
+    .filter(e => e.type === "sleep" && e.data && e.data.start && e.data.end && e.data.end >= weekAgo)
+    .sort((a, b) => a.data.start - b.data.start);
+  if (closed.length < 2) return null;
+  const open = (entries || []).some(e => e.type === "sleep" && e.data && e.data.start && !e.data.end);
+  const windows = [];
+  for (let i = 1; i < closed.length; i++) {
+    const w = Math.round((closed[i].data.start - closed[i - 1].data.end) / 60000);
+    if (w > 15 && w < 20 * 60) windows.push(w);
+  }
+  if (!windows.length) return null;
+  const avg = Math.round(windows.reduce((a, b) => a + b, 0) / windows.length);
+  const lastWake = closed[closed.length - 1].data.end;
+  return { eta: Math.max(lastWake, now) + avg * 60000, windowMin: avg, basis: windows.length, napping: !!open };
+}
+
 /** Change an entry's timestamp (backdate a late log). Returns true if updated.
  *  For naps the whole window shifts so the duration is preserved. */
 function retimeEntry(entries, id, newTs) {
@@ -289,5 +312,5 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = { dayKey, timeAgo, fmtTime, dailySummary, openSleep, growthTrend,
     newId, pad, entriesToCSV, feedIntervals, avgFeedInterval, lastBreastSide,
     weeklySummary, retimeEntry, longestSleepStretch, milestones, ageAt, visitSummary,
-    sleepNorms, sleepAssessment, weightGainRate };
+    sleepNorms, sleepAssessment, weightGainRate, nextNap };
 }

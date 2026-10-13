@@ -10,10 +10,11 @@
       if (s && Array.isArray(s.entries)) {
         if (typeof s.dob !== "string") s.dob = "";
         if (typeof s.tipCat !== "string") s.tipCat = "general";
+        if (typeof s.night !== "boolean") s.night = false;
         return s;
       }
-      return { entries: [], tipCat: "general", dob: "" };
-    } catch (e) { return { entries: [], tipCat: "general", dob: "" }; }
+      return { entries: [], tipCat: "general", dob: "", night: false };
+    } catch (e) { return { entries: [], tipCat: "general", dob: "", night: false }; }
   }
   function save(s) { localStorage.setItem(KEY, JSON.stringify(s)); }
   let state = load();
@@ -55,12 +56,15 @@
 
   function render() {
     renderSummary();
+    renderPredict();
+    renderLast();
     renderWeek();
     renderLog();
     renderGrowth();
     renderMilestones();
     renderTips();
     renderSideHint();
+    applyNight();
     const os = openSleep(state.entries);
     $("sleepbtn").innerHTML = os
       ? '<span class="lb">End nap</span><span class="ls">started ' + esc(fmtTime(os.data.start)) + "</span>"
@@ -128,36 +132,50 @@
     return '<div class="now-stat"><b>' + esc(String(big)) + "</b><span>" + esc(small) + "</span></div>";
   }
 
+  function dayLabel(key, now) {
+    if (key === dayKey(now)) return "Today";
+    if (key === dayKey(now - 86400000)) return "Yesterday";
+    return key;
+  }
+
+  function rowHtml(e) {
+    let what = "", icon = ICONS.growth;
+    if (e.type === "feed") { what = esc(feedLabel(e)); icon = ICONS.feed; }
+    else if (e.type === "sleep") {
+      what = "Nap " + fmtTime(e.data.start) + (e.data.end ? " → " + fmtTime(e.data.end) : " · in progress…");
+      icon = ICONS.sleep;
+    }
+    else if (e.type === "diaper") { what = "Diaper · " + esc(e.data.kind); icon = ICONS.diaper; }
+    else if (e.type === "growth") {
+      what = "Growth · " +
+        (e.data.weightLb != null ? esc(e.data.weightLb) + " lb " : "") +
+        (e.data.heightIn != null ? esc(e.data.heightIn) + " in" : "");
+      icon = ICONS.growth;
+    }
+    else if (e.type === "milestone") {
+      what = "Milestone · " + esc(e.data.text || "");
+      icon = ICONS.milestone;
+    }
+    return "<div class='trow'><span class='tdot " + e.type + "'>" + icon + "</span>" +
+      "<span><span class='twhat'>" + what + "</span><br>" +
+      "<span class='twhen'>" + fmtTime(e.ts) + " · " + timeAgo(e.ts) + "</span></span>" +
+      "<button class='adj' data-id='" + e.id + "' aria-label='Adjust time'>Adjust</button>" +
+      "<button class='del' data-id='" + e.id + "' aria-label='Delete entry'>✕</button></div>";
+  }
+
   function renderLog() {
+    const now = Date.now();
     const items = state.entries.slice().sort((a, b) => b.ts - a.ts).slice(0, 30);
     if (!items.length) {
       $("loglist").innerHTML = "<p class='muted'>No logs yet — tap a button above to record the first one.</p>";
       return;
     }
-    $("loglist").innerHTML = items.map(e => {
-      let what = "", icon = ICONS.growth;
-      if (e.type === "feed") { what = esc(feedLabel(e)); icon = ICONS.feed; }
-      else if (e.type === "sleep") {
-        what = "Nap " + fmtTime(e.data.start) + (e.data.end ? " → " + fmtTime(e.data.end) : " · in progress…");
-        icon = ICONS.sleep;
-      }
-      else if (e.type === "diaper") { what = "Diaper · " + esc(e.data.kind); icon = ICONS.diaper; }
-      else if (e.type === "growth") {
-        what = "Growth · " +
-          (e.data.weightLb != null ? esc(e.data.weightLb) + " lb " : "") +
-          (e.data.heightIn != null ? esc(e.data.heightIn) + " in" : "");
-        icon = ICONS.growth;
-      }
-      else if (e.type === "milestone") {
-        what = "Milestone · " + esc(e.data.text || "");
-        icon = ICONS.milestone;
-      }
-      return "<div class='trow'><span class='tdot " + e.type + "'>" + icon + "</span>" +
-        "<span><span class='twhat'>" + what + "</span><br>" +
-        "<span class='twhen'>" + fmtTime(e.ts) + " · " + timeAgo(e.ts) + "</span></span>" +
-        "<button class='adj' data-id='" + e.id + "' aria-label='Adjust time'>Adjust</button>" +
-        "<button class='del' data-id='" + e.id + "' aria-label='Delete entry'>✕</button></div>";
-    }).join("");
+    const groups = {};
+    items.forEach(e => { const k = dayKey(e.ts); (groups[k] = groups[k] || []).push(e); });
+    const keys = Object.keys(groups).sort().reverse();
+    $("loglist").innerHTML = keys.map(k =>
+      "<div class='daygroup'><p class='dayhead'>" + esc(dayLabel(k, now)) + "</p>" +
+      groups[k].map(rowHtml).join("") + "</div>").join("");
     $("loglist").querySelectorAll(".del").forEach(b => b.addEventListener("click", () => {
       state.entries = state.entries.filter(e => e.id !== b.dataset.id);
       save(state); render();
@@ -165,6 +183,72 @@
     $("loglist").querySelectorAll(".adj").forEach(b => b.addEventListener("click", () => {
       openTimeAdjust(b);
     }));
+  }
+
+  /** "Last logged" times under each dashboard tile. */
+  function renderLast() {
+    const now = Date.now();
+    const latest = type => {
+      const es = state.entries.filter(e => e.type === type);
+      return es.length ? es.reduce((a, b) => (a.ts > b.ts ? a : b)).ts : null;
+    };
+    const set = (id, ts) => {
+      const n = $(id);
+      if (n) n.textContent = ts ? "last " + timeAgo(ts, now) : "nothing logged yet";
+    };
+    const os = openSleep(state.entries);
+    set("last-feed", latest("feed"));
+    set("last-sleep", os ? os.data.start : latest("sleep"));
+    set("last-diaper", latest("diaper"));
+    set("last-growth", latest("growth"));
+  }
+
+  /** SweetSpot-style next-nap prediction from wake windows. */
+  function renderPredict() {
+    const host = $("sweetspot");
+    if (!host) return;
+    const ico = ICONS.sleep;
+    const p = nextNap(state.entries, Date.now());
+    if (!p) {
+      host.innerHTML = '<span class="p-ico">' + ico + "</span><div><h3>Next nap</h3><p>Log two or more naps and we'll start predicting the next sleep window.</p></div>";
+      return;
+    }
+    if (p.napping) {
+      host.innerHTML = '<span class="p-ico">' + ico + "</span><div><h3>Next nap</h3><div class='p-time'>Napping now</div><p>Usual wake window is " + fmtInterval(p.windowMin) + " — the next window starts after this nap.</p></div>";
+      return;
+    }
+    host.innerHTML = '<span class="p-ico">' + ico + "</span><div><h3>Next nap window</h3><div class='p-time'>" +
+      esc(fmtTime(p.eta)) + "</div><p>Usual wake window " + fmtInterval(p.windowMin) + " · based on " + p.basis + " recent wake window" + (p.basis === 1 ? "" : "s") + ".</p></div>";
+  }
+
+  /** Simple SVG weight-trend chart, no dependencies. */
+  function renderGrowthChart() {
+    const host = $("growthchart");
+    if (!host) return;
+    const trend = growthTrend(state.entries).filter(g => g.weightLb != null);
+    if (trend.length < 2) { host.innerHTML = ""; return; }
+    const W = 560, H = 150, P = 30;
+    const ws = trend.map(g => g.weightLb);
+    const min = Math.min.apply(null, ws), max = Math.max.apply(null, ws);
+    const span = Math.max(0.5, max - min);
+    const pts = trend.map((g, i) => {
+      const x = P + (i / (trend.length - 1)) * (W - 2 * P);
+      const y = H - P - ((g.weightLb - min) / span) * (H - 2 * P);
+      return [x, y, g];
+    });
+    const line = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+    host.innerHTML = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Weight trend chart">' +
+      '<path d="' + line + '" fill="none" stroke="#a8565e" stroke-width="3"/>' +
+      pts.map(p => '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="5" fill="#a8565e"><title>' +
+        esc(p[2].date + " · " + p[2].weightLb + " lb") + "</title></circle>").join("") +
+      '<text x="' + P + '" y="16" font-size="12" fill="currentColor">' + max + " lb</text>" +
+      '<text x="' + P + '" y="' + (H - 10) + '" font-size="12" fill="currentColor">' + min + " lb</text></svg>";
+  }
+
+  function applyNight() {
+    document.body.classList.toggle("night", !!state.night);
+    const b = $("nightmode");
+    if (b) b.setAttribute("aria-pressed", state.night ? "true" : "false");
   }
 
   function openTimeAdjust(btn) {
@@ -193,6 +277,7 @@
   }
 
   function renderGrowth() {
+    renderGrowthChart();
     const trend = growthTrend(state.entries);
     const gain = weightGainRate(state.entries);
     const gainHtml = gain
@@ -325,6 +410,11 @@
     if (dob) dob.addEventListener("change", () => {
       state.dob = /^\d{4}-\d{2}-\d{2}$/.test(dob.value) ? dob.value : "";
       save(state); render();
+    });
+    const nm = $("nightmode");
+    if (nm) nm.addEventListener("click", () => {
+      state.night = !state.night;
+      save(state); applyNight();
     });
     const undo = $("undo");
     if (undo) undo.addEventListener("click", () => {

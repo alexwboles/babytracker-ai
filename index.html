@@ -20,113 +20,140 @@
       <p class="tag">One-tap care log for tired parents. All local, nothing leaves your browser.</p>
     </div>
   </div>
-  <p class="pill local">Local only</p>
+  <div class="top-actions">
+    <button id="nightmode" class="btn secondary small" aria-pressed="false" title="Red-tinted dark theme for night logging">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      Night
+    </button>
+    <p class="pill local">Local only</p>
+  </div>
 </header>
 <p class="disclaimer"><strong>Gentle note:</strong> this is a logbook, not medical advice. When in doubt, talk to your pediatrician.</p>
 
 <main>
-  <section class="card now" aria-label="Right now">
-    <p class="overline">Right now</p>
-    <div id="sumgrid"></div>
-  </section>
+  <section class="dash" aria-label="Log care">
+    <div class="dashgrid">
+      <article class="tile tile-feed">
+        <div class="tile-head">
+          <span class="tile-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 2.7s6.5 7 6.5 11.3a6.5 6.5 0 0 1-13 0C5.5 9.7 12 2.7 12 2.7z"/></svg></span>
+          <div><h2>Feed</h2><p class="last" id="last-feed">—</p></div>
+        </div>
+        <p class="sidehint" id="sidehint" aria-live="polite"></p>
+        <div class="btnrow">
+          <button class="logbtn" data-feed="breast-left"><span class="lb">Left</span><span class="ls">breast</span></button>
+          <button class="logbtn" data-feed="breast-right"><span class="lb">Right</span><span class="ls">breast</span></button>
+          <button class="logbtn" data-feed="bottle"><span class="lb">Bottle</span><span class="ls">formula / milk</span></button>
+        </div>
+        <div class="ozrow">
+          <button type="button" id="ozdown" aria-label="Decrease ounces">−</button>
+          <label>Ounces <input id="oz" type="number" min="0" step="0.5" placeholder="0" aria-label="ounces"></label>
+          <button type="button" id="ozup" aria-label="Increase ounces">+</button>
+        </div>
+      </article>
 
-  <section class="card" aria-label="Quick log">
-    <div class="card-head">
-      <h2>Quick log</h2>
-      <p class="muted">One tap, timestamped automatically.</p>
-      <button id="undo" class="btn secondary small" title="Remove the most recent entry">Undo last</button>
+      <article class="tile tile-sleep">
+        <div class="tile-head">
+          <span class="tile-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></span>
+          <div><h2>Sleep</h2><p class="last" id="last-sleep">—</p></div>
+        </div>
+        <button id="sleepbtn" class="logbtn wide">Start nap</button>
+        <p class="muted small tile-note">Timers survive app restarts — the nap keeps its real start time.</p>
+      </article>
+
+      <article class="tile tile-diaper">
+        <div class="tile-head">
+          <span class="tile-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/></svg></span>
+          <div><h2>Diaper</h2><p class="last" id="last-diaper">—</p></div>
+        </div>
+        <div class="btnrow">
+          <button class="logbtn" data-diaper="wet"><span class="lb">Wet</span></button>
+          <button class="logbtn" data-diaper="dirty"><span class="lb">Dirty</span></button>
+          <button class="logbtn" data-diaper="both"><span class="lb">Both</span></button>
+        </div>
+      </article>
+
+      <article class="tile tile-growth">
+        <div class="tile-head">
+          <span class="tile-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg></span>
+          <div><h2>Growth</h2><p class="last" id="last-growth">—</p></div>
+        </div>
+        <div class="growform mini">
+          <label>Weight (lb)<input id="gw" type="number" min="0" step="0.1" placeholder="12.4"></label>
+          <label>Height (in)<input id="gh" type="number" min="0" step="0.1" placeholder="23.5"></label>
+        </div>
+        <button id="gadd" class="btn primary">Log measurement</button>
+      </article>
     </div>
 
-    <div class="log-group feed">
-      <p class="group-label">Feed</p>
-      <p class="sidehint" id="sidehint" aria-live="polite"></p>
-      <div class="btnrow">
-        <button class="logbtn feed" data-feed="breast-left"><span class="lb">Left</span><span class="ls">breast</span></button>
-        <button class="logbtn feed" data-feed="breast-right"><span class="lb">Right</span><span class="ls">breast</span></button>
-        <button class="logbtn feed" data-feed="bottle"><span class="lb">Bottle</span><span class="ls">formula / milk</span></button>
+    <div class="dashrow">
+      <div id="sweetspot" class="predict" aria-live="polite"></div>
+      <button id="undo" class="btn secondary" title="Remove the most recent entry">Undo last</button>
+    </div>
+
+    <div class="card today" aria-label="Today so far">
+      <p class="overline">Today so far</p>
+      <div id="sumgrid"></div>
+    </div>
+  </section>
+
+  <div class="columns">
+    <section class="card" aria-label="This week">
+      <div class="card-head">
+        <h2>This week</h2>
+        <p class="muted">Last 7 days at a glance.</p>
       </div>
-      <div class="ozrow">
-        <button type="button" id="ozdown" aria-label="Decrease ounces">−</button>
-        <label>Ounces <input id="oz" type="number" min="0" step="0.5" placeholder="0" aria-label="ounces"></label>
-        <button type="button" id="ozup" aria-label="Increase ounces">+</button>
+      <div id="weekstrip" class="weekstrip"></div>
+    </section>
+
+    <section class="card" aria-label="Recent log">
+      <div class="card-head">
+        <h2>Recent</h2>
+        <p class="muted">Grouped by day — mistakes are fixable.</p>
       </div>
-    </div>
+      <div id="loglist" class="timeline"></div>
+    </section>
 
-    <div class="log-group sleep">
-      <p class="group-label">Sleep</p>
-      <button id="sleepbtn" class="logbtn sleep wide">Start nap</button>
-    </div>
-
-    <div class="log-group diaper">
-      <p class="group-label">Diaper</p>
-      <div class="btnrow">
-        <button class="logbtn diaper" data-diaper="wet"><span class="lb">Wet</span></button>
-        <button class="logbtn diaper" data-diaper="dirty"><span class="lb">Dirty</span></button>
-        <button class="logbtn diaper" data-diaper="both"><span class="lb">Both</span></button>
+    <section class="card" aria-label="Growth">
+      <div class="card-head">
+        <h2>Growth</h2>
+        <p class="muted">Weight and height at checkups, with the trend.</p>
       </div>
-    </div>
-  </section>
-
-  <section class="card" aria-label="This week">
-    <div class="card-head">
-      <h2>This week</h2>
-      <p class="muted">Last 7 days at a glance.</p>
-    </div>
-    <div id="weekstrip" class="weekstrip"></div>
-  </section>
-
-  <section class="card" aria-label="Recent log">
-    <div class="card-head">
-      <h2>Recent</h2>
-      <p class="muted">Last 30 entries — mistakes are fixable.</p>
-    </div>
-    <div id="loglist" class="timeline"></div>
-  </section>
-
-  <section class="card" aria-label="Growth">
-    <div class="card-head">
-      <h2>Growth</h2>
-      <p class="muted">Log weight and height at checkups to see the trend.</p>
-    </div>
-    <div class="growform">
-      <label>Weight (lb)<input id="gw" type="number" min="0" step="0.1" placeholder="12.4"></label>
-      <label>Height (in)<input id="gh" type="number" min="0" step="0.1" placeholder="23.5"></label>
       <label class="wide">Note<input id="gnote" placeholder="e.g. 2-month checkup"></label>
-      <button id="gadd" class="btn primary">Log measurement</button>
-    </div>
-    <div id="growthlist" class="growthlist"></div>
-    <p class="muted small">Percentiles and “is this normal?” questions belong with your pediatrician — this log just keeps the numbers handy for those visits.</p>
-  </section>
+      <div id="growthchart" class="chart"></div>
+      <div id="growthlist" class="growthlist"></div>
+      <p class="muted small">Percentiles and “is this normal?” questions belong with your pediatrician — this log just keeps the numbers handy for those visits.</p>
+    </section>
 
-  <section class="card" aria-label="Milestones">
-    <div class="card-head">
-      <h2>Milestones</h2>
-      <p class="muted">First smile, rolled over, slept through the night — log the firsts as they happen.</p>
-    </div>
-    <label class="dobrow">Baby's birth date <span class="muted small">(optional — shows age at each milestone)</span>
-      <input type="date" id="dob" aria-label="Baby's birth date">
-    </label>
-    <div class="mrow">
-      <input id="mtext" placeholder="e.g. Rolled over for the first time!" maxlength="140" aria-label="Milestone text">
-      <button id="madd" class="btn primary">Log milestone</button>
-    </div>
-    <div id="milestonelist" class="milestones"></div>
-  </section>
+    <section class="card" aria-label="Milestones">
+      <div class="card-head">
+        <h2>Milestones</h2>
+        <p class="muted">First smile, rolled over, slept through the night — log the firsts as they happen.</p>
+      </div>
+      <label class="dobrow">Baby's birth date <span class="muted small">(optional — shows age at each milestone)</span>
+        <input type="date" id="dob" aria-label="Baby's birth date">
+      </label>
+      <div class="mrow">
+        <input id="mtext" placeholder="e.g. Rolled over for the first time!" maxlength="140" aria-label="Milestone text">
+        <button id="madd" class="btn primary">Log milestone</button>
+      </div>
+      <div id="milestonelist" class="milestones"></div>
+    </section>
 
-  <section class="card" aria-label="Soothing tips">
-    <div class="card-head">
-      <h2>Soothing tips</h2>
-      <p class="muted">Gentle, practical, non-medical.</p>
-    </div>
-    <div class="chips" role="tablist" aria-label="Tip categories">
-      <button class="tipcat" data-cat="feeding">Feeding</button>
-      <button class="tipcat" data-cat="sleep">Sleep</button>
-      <button class="tipcat" data-cat="fussy">Fussy</button>
-      <button class="tipcat" data-cat="diaper">Diaper</button>
-      <button class="tipcat" data-cat="general">General</button>
-    </div>
-    <div id="tipslist" class="tips"></div>
-  </section>
+    <section class="card" aria-label="Soothing tips">
+      <div class="card-head">
+        <h2>Soothing tips</h2>
+        <p class="muted">Gentle, practical, non-medical.</p>
+      </div>
+      <div class="chips" role="tablist" aria-label="Tip categories">
+        <button class="tipcat" data-cat="feeding">Feeding</button>
+        <button class="tipcat" data-cat="sleep">Sleep</button>
+        <button class="tipcat" data-cat="fussy">Fussy</button>
+        <button class="tipcat" data-cat="diaper">Diaper</button>
+        <button class="tipcat" data-cat="general">General</button>
+      </div>
+      <div id="tipslist" class="tips"></div>
+    </section>
+  </div>
 </main>
 
 <footer>
