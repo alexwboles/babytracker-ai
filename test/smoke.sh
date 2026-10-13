@@ -135,6 +135,42 @@ check "index.html wires milestones, birth date, and visit summary" node -e "
   for (const id of ['mtext','madd','milestonelist','dob','visitbtn','visitsummary']) if(!h.includes('id=\"'+id+'\"')) throw new Error('missing '+id);
   const a=fs.readFileSync('js/app.js','utf8');
   for (const fn of ['renderMilestones','renderVisit','visitSummary(','longestSleepStretch(']) if(!a.includes(fn)) throw new Error('missing '+fn);"
+check "sleepNorms picks the range by age" node -e "
+  const L=require('./js/logic.js');
+  const n1=L.sleepNorms('2026-09-01','2026-10-13T12:00:00');
+  if(!n1||n1.minH!==14||n1.maxH!==17) throw new Error('newborn: '+JSON.stringify(n1));
+  const n2=L.sleepNorms('2026-02-01','2026-10-13T12:00:00');
+  if(!n2||n2.minH!==12||n2.maxH!==16) throw new Error('infant: '+JSON.stringify(n2));
+  const n3=L.sleepNorms('2025-01-01','2026-10-13T12:00:00');
+  if(!n3||n3.minH!==11||n3.maxH!==14) throw new Error('toddler: '+JSON.stringify(n3));
+  if(L.sleepNorms('','2026-10-13')!==null) throw new Error('no dob should be null');
+  if(L.sleepNorms('2026-10-13','2026-10-01')!==null) throw new Error('future dob should be null');"
+check "sleepAssessment compares today against the norm" node -e "
+  const L=require('./js/logic.js');
+  const day='2026-10-13';
+  const mk=(mins)=>{ const t=new Date(day+'T12:00:00').getTime(); return {id:'s'+mins,type:'sleep',ts:t,data:{start:t,end:t+mins*60000}}; };
+  const low=L.sleepAssessment([mk(300)],'2026-09-01',day+'T23:00:00');
+  if(low.status!=='low'||low.norm.minH!==14) throw new Error('low: '+JSON.stringify(low));
+  if(!/below/.test(low.note)) throw new Error('note: '+low.note);
+  const ok=L.sleepAssessment([mk(900)],'2026-09-01',day+'T23:00:00');
+  if(ok.status!=='ok') throw new Error('ok: '+ok.status);
+  const none=L.sleepAssessment([mk(900)],'',day+'T23:00:00');
+  if(none.status!==null) throw new Error('no dob -> null status');"
+check "weightGainRate computes oz/day between weigh-ins" node -e "
+  const L=require('./js/logic.js');
+  const g=(lb,date)=>({id:date,type:'growth',ts:new Date(date+'T12:00:00').getTime(),data:{weightLb:lb}});
+  const r=L.weightGainRate([g(8,'2026-10-01'),g(8.5,'2026-10-11')]);
+  if(!r) throw new Error('null');
+  if(r.days!==10) throw new Error('days='+r.days);
+  if(r.ozPerDay!==0.8) throw new Error('ozPerDay='+r.ozPerDay);
+  if(L.weightGainRate([g(8,'2026-10-01')])!==null) throw new Error('single measurement should be null');
+  if(L.weightGainRate([])!==null) throw new Error('empty should be null');"
+check "index.html has the undo button" node -e "
+  const fs=require('fs'), h=fs.readFileSync('index.html','utf8');
+  if(!h.includes('id=\"undo\"')) throw new Error('missing undo');"
+check "app.js wires undo, sleep assessment, weight gain" node -e "
+  const fs=require('fs'), a=fs.readFileSync('js/app.js','utf8');
+  for (const s of ['undoLast','sleepAssessment','weightGainRate','sa-chip','gainline']) if(!a.includes(s)) throw new Error('missing '+s);"
 
 echo "--- smoke: $pass passed, $fail failed ---"
 exit $((fail>0))

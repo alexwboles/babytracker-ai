@@ -221,6 +221,54 @@ function visitSummary(entries, dobISO, endTs) {
   };
 }
 
+/** Age-appropriate total sleep ranges (hours/day) by age at `ts`.
+ *  Rough AAP-style guidance — the app always defers to the pediatrician.
+ *  Returns { minH, maxH, label } or null when no usable birth date. */
+function sleepNorms(dobISO, ts) {
+  if (!dobISO || !/^\d{4}-\d{2}-\d{2}$/.test(dobISO)) return null;
+  const dob = new Date(dobISO + "T12:00:00");
+  const d = new Date(ts);
+  if (isNaN(dob) || isNaN(d) || d < dob) return null;
+  const months = (d.getFullYear() - dob.getFullYear()) * 12 + (d.getMonth() - dob.getMonth());
+  if (months < 3) return { minH: 14, maxH: 17, label: "newborn (0–3 mo)" };
+  if (months < 12) return { minH: 12, maxH: 16, label: "infant (4–11 mo)" };
+  if (months < 24) return { minH: 11, maxH: 14, label: "toddler (1–2 y)" };
+  return { minH: 10, maxH: 13, label: "child (2+ y)" };
+}
+
+/** Today's sleep vs the age norm.
+ *  Returns { sleepMin, norm, status, note }; status: low|ok|high, null without a norm. */
+function sleepAssessment(entries, dobISO, endTs) {
+  const end = endTs == null ? Date.now() : endTs;
+  const norm = sleepNorms(dobISO, end);
+  if (!norm) return { sleepMin: 0, norm: null, status: null, note: "" };
+  const s = dailySummary(entries || [], dayKey(end));
+  const h = s.sleepMin / 60;
+  const status = h < norm.minH ? "low" : h > norm.maxH ? "high" : "ok";
+  const range = "typical " + norm.minH + "–" + norm.maxH + " h for a " + norm.label;
+  return {
+    sleepMin: s.sleepMin, norm, status,
+    note: status === "low" ? "below the " + range
+      : status === "high" ? "above the " + range
+      : "inside the " + range
+  };
+}
+
+/** Weight-gain rate between the last two weight measurements, in oz/day.
+ *  Returns { ozPerDay, days, from, to } or null with fewer than 2 weights. */
+function weightGainRate(entries) {
+  const withW = growthTrend(entries || []).filter(g => g.weightLb != null);
+  if (withW.length < 2) return null;
+  const a = withW[withW.length - 2], b = withW[withW.length - 1];
+  const days = Math.max(1, Math.round((b.ts - a.ts) / 86400000));
+  return {
+    ozPerDay: +(((b.weightLb - a.weightLb) * 16) / days).toFixed(2),
+    days,
+    from: { date: a.date, weightLb: a.weightLb },
+    to: { date: b.date, weightLb: b.weightLb }
+  };
+}
+
 /** Change an entry's timestamp (backdate a late log). Returns true if updated.
  *  For naps the whole window shifts so the duration is preserved. */
 function retimeEntry(entries, id, newTs) {
@@ -240,5 +288,6 @@ function retimeEntry(entries, id, newTs) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = { dayKey, timeAgo, fmtTime, dailySummary, openSleep, growthTrend,
     newId, pad, entriesToCSV, feedIntervals, avgFeedInterval, lastBreastSide,
-    weeklySummary, retimeEntry, longestSleepStretch, milestones, ageAt, visitSummary };
+    weeklySummary, retimeEntry, longestSleepStretch, milestones, ageAt, visitSummary,
+    sleepNorms, sleepAssessment, weightGainRate };
 }

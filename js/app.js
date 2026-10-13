@@ -36,6 +36,15 @@
     save(state); render();
   }
 
+  /** Remove the most recent entry (the 3 AM fat-finger fix). */
+  function undoLast() {
+    if (!state.entries.length) return null;
+    const last = state.entries.slice().sort((a, b) => b.ts - a.ts)[0];
+    state.entries = state.entries.filter(e => e.id !== last.id);
+    save(state); render();
+    return last;
+  }
+
   function feedLabel(e) {
     const k = e.data.kind;
     if (k === "bottle") return "Bottle" + (e.data.oz ? " · " + e.data.oz + " oz" : "");
@@ -73,12 +82,18 @@
     const os = openSleep(state.entries);
     const avgIv = avgFeedInterval(state.entries, key);
     const stretch = longestSleepStretch(state.entries, Date.now());
+    const sa = sleepAssessment(state.entries, state.dob, Date.now());
+    const saChip = sa.norm
+      ? '<span class="sa-chip ' + sa.status + '" title="' + esc(sa.note) + '">Sleep: ' +
+        esc(fmtInterval(sa.sleepMin)) + " · " + esc(sa.note) + "</span>"
+      : '<span class="sa-chip none">Add birth date for a sleep assessment</span>';
     $("sumgrid").innerHTML =
       '<div class="now-big">' +
         '<div><div class="ago">' + esc(lastFeed || "—") + '</div>' +
         '<div class="ago-lab">' + (lastFeed ? "since last feed" : "no feeds logged today yet") + "</div></div>" +
         (os ? '<span class="nap-chip"><span class="dot"></span>Nap in progress · ' + esc(fmtTime(os.data.start)) + "</span>" : "") +
       "</div>" +
+      '<div class="sa-row">' + saChip + "</div>" +
       '<div class="now-stats">' +
         stat(s.feeds, "feeds") +
         stat(avgIv != null ? fmtInterval(avgIv) : "—", "avg between feeds") +
@@ -179,7 +194,13 @@
 
   function renderGrowth() {
     const trend = growthTrend(state.entries);
-    $("growthlist").innerHTML = trend.length ? trend.slice().reverse().map(g =>
+    const gain = weightGainRate(state.entries);
+    const gainHtml = gain
+      ? "<div class='gainline'><b>" + (gain.ozPerDay >= 0 ? "+" : "") + gain.ozPerDay +
+        " oz/day</b> weight gain <span class='muted'>(" + esc(gain.from.date) + " → " + esc(gain.to.date) +
+        ", " + gain.days + " days apart) · pediatricians often look for ~0.5–1 oz/day in early infancy — ask yours what's right for your baby</span></div>"
+      : "";
+    $("growthlist").innerHTML = gainHtml + (trend.length ? trend.slice().reverse().map(g =>
       "<div class='gcard'><span class='gdate'>" + esc(g.date) + "</span>" +
       (g.weightLb != null ? "<span class='gnum'>" + esc(g.weightLb) + " <small>lb</small></span>" : "") +
       (g.heightIn != null ? "<span class='gnum'>" + esc(g.heightIn) + " <small>in</small></span>" : "") +
@@ -187,7 +208,7 @@
       (g.dHeight != null ? "<span class='gdelta'>" + (g.dHeight >= 0 ? "+" : "") + g.dHeight + " in</span>" : "") +
       (g.note ? "<span class='gnote'>" + esc(g.note) + "</span>" : "") +
       "</div>"
-    ).join("") : "<p class='muted'>No measurements yet. Log weight and height at checkups to see the trend.</p>";
+    ).join("") : "<p class='muted'>No measurements yet. Log weight and height at checkups to see the trend.</p>");
   }
 
   function renderMilestones() {
@@ -210,6 +231,8 @@
 
   function renderVisit() {
     const v = visitSummary(state.entries, state.dob);
+    const sa = sleepAssessment(state.entries, state.dob, v.generatedAt);
+    const gain = weightGainRate(state.entries);
     const host = $("visitsummary");
     if (!host) return;
     const gRow = g =>
@@ -232,8 +255,11 @@
       "<li><b>" + v.totals.sleepMin + " min</b> asleep</li>" +
       "<li><b>" + v.totals.diapers + "</b> diapers</li>" +
       (v.stretch ? "<li>longest sleep stretch: <b>" + esc(fmtInterval(v.stretch.mins)) + "</b></li>" : "") +
+      (sa.norm ? "<li>today's sleep: <b>" + esc(fmtInterval(sa.sleepMin)) + "</b> — " + esc(sa.note) + "</li>" : "") +
       "</ul>" +
       "<h2>Growth</h2>" +
+      (gain ? "<p><b>" + (gain.ozPerDay >= 0 ? "+" : "") + gain.ozPerDay +
+        " oz/day</b> weight gain since " + esc(gain.from.date) + ".</p>" : "") +
       (v.growth.length ? "<ul class='vlist'>" + v.growth.map(gRow).join("") + "</ul>"
         : "<p class='muted'>No measurements logged.</p>") +
       "<h2>Milestones</h2>" +
@@ -299,6 +325,14 @@
     if (dob) dob.addEventListener("change", () => {
       state.dob = /^\d{4}-\d{2}-\d{2}$/.test(dob.value) ? dob.value : "";
       save(state); render();
+    });
+    const undo = $("undo");
+    if (undo) undo.addEventListener("click", () => {
+      const last = undoLast();
+      if (!last) return;
+      const orig = undo.textContent;
+      undo.textContent = "Undone ✓";
+      setTimeout(() => { undo.textContent = orig; }, 1400);
     });
     const visitbtn = $("visitbtn");
     if (visitbtn) visitbtn.addEventListener("click", () => {

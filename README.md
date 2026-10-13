@@ -13,7 +13,10 @@ New parents run on fragmented sleep and can't remember when the last feed was, w
 5. **Adjust entry time** — backdate any log entry (naps shift as a whole, preserving duration).
 6. **Longest sleep stretch** — the longest single nap in the last 7 days, right on the dashboard.
 7. **Milestones** — log the firsts (first smile, rolled over…) with an optional birth date that shows baby's age at each milestone.
-8. **Pediatrician visit summary** — one click builds a printable one-page sheet: last-7-day totals, recent growth, sleep stretch, and milestones.
+8. **Pediatrician visit summary** — one click builds a printable one-page sheet: last-7-day totals, recent growth, sleep stretch, sleep assessment, weight-gain rate, and milestones.
+9. **Sleep assessment** — set the birth date and the dashboard compares today's sleep against age-appropriate ranges (newborn / infant / toddler), with a plain-English verdict. Also included in the visit summary.
+10. **Weight-gain rate** — oz/day between the last two weigh-ins, shown in the growth section and the visit summary (with the usual "ask your pediatrician" framing).
+11. **Undo last entry** — one tap removes the most recent log (the 3 AM fat-finger fix).
 1. **Quick-log buttons** — breast (left/right), bottle with ounces, nap start/stop, wet/dirty diapers — one tap, timestamped automatically
 2. **Today dashboard** — feed count, bottle ounces, nap minutes, diaper totals, and "last feed: 25 min ago" at a glance
 3. **Recent log** — last 30 entries with delete, so mistakes are fixable

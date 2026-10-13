@@ -164,5 +164,27 @@ flow "visitSummary works with no data and no birth date" "
   if(v.growth.length||v.milestones.length||v.week.length!==7) throw new Error('empty shape wrong');
 "
 
+flow "sleep assessment flags a low-sleep day for a newborn" "
+  const L=require('./js/logic.js');
+  const base=new Date(2026,9,13,23,0,0).getTime();
+  const nap=(startH,durMin)=>{ const s=base-(23-startH)*3600000; return {id:'n'+startH,type:'sleep',ts:s,data:{start:s,end:s+durMin*60000}}; };
+  const es=[nap(2,240),nap(10,180)]; // 7 h total
+  const a=L.sleepAssessment(es,'2026-09-01',base);
+  if(a.status!=='low') throw new Error('expected low, got '+a.status);
+  if(!a.note.includes('newborn')) throw new Error('note should name the norm: '+a.note);
+  const good=L.sleepAssessment([nap(1,480),nap(9,480)],'2026-09-01',base); // 16 h
+  if(good.status!=='ok') throw new Error('16h newborn should be ok, got '+good.status);
+"
+
+flow "weight gain rate between checkups" "
+  const L=require('./js/logic.js');
+  const g=(lb,date)=>({id:date,type:'growth',ts:new Date(date+'T12:00:00').getTime(),data:{weightLb:lb,heightIn:24}});
+  const r=L.weightGainRate([g(7.5,'2026-09-13'),g(8.4,'2026-10-03')]);
+  if(!r) throw new Error('null');
+  if(r.days!==20) throw new Error('days='+r.days);
+  if(Math.abs(r.ozPerDay-0.72)>0.001) throw new Error('ozPerDay='+r.ozPerDay);
+  if(r.from.weightLb!==7.5||r.to.weightLb!==8.4) throw new Error('endpoints wrong');
+"
+
 echo "--- e2e: $pass passed, $fail failed ---"
 exit $((fail>0))
